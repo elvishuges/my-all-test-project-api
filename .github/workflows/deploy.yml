@@ -1,4 +1,4 @@
-name: Setup SSH for EC2 instance
+name: Deploy to EC2
 
 on:
   push:
@@ -6,18 +6,21 @@ on:
       - main
 
 jobs:
-  setup-ssh:
+  deploy:
     runs-on: ubuntu-latest
     env:
-      EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-      EC2_URL: "ec2-18-208-250-82.compute-1.amazonaws.com"
-      EC2_USERNAME: "ec2-user"
+      EC2_SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+      EC2_HOST: ec2-18-208-250-82.compute-1.amazonaws.com
+      EC2_USER: ubuntu
+
     steps:
-      - name: Setup SSH for EC2
-        uses: omarhosny206/setup-ssh-for-ec2@v1.0.0
-        with:
-          EC2_SSH_PRIVATE_KEY: $EC2_SSH_PRIVATE_KEY
-          EC2_URL: $EC2_URL
-      # then you can run commands/scripts directly on the EC2 instance e.g.:
-      - name: Create a new file on the EC2 instance with "hello-world"
-        run: ssh -o StrictHostKeyChecking=no $EC2_USERNAME@$EC2_URL "echo "hello-world" >> new_file.txt"
+      - name: Configurar chave SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "$EC2_SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts
+
+      - name: Testar conexão SSH
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa $EC2_USER@$EC2_HOST "echo 'Conexão SSH bem-sucedida!'"
