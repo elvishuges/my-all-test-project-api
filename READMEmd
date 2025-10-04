@@ -1,0 +1,6 @@
+git clone https://github.com/masum184e/thinkify.git
+
+# BACKEND
+cd server
+npm install
+npx nodemon index.js
