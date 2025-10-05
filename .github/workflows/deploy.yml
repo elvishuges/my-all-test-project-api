@@ -3,7 +3,7 @@ name: 🚀 Deploy Node.js App to AWS EC2
 on:
   push:
     branches:
-      - main # Executa ao fazer push na branch main
+      - main
 
 jobs:
   deploy:
@@ -17,10 +17,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "18"
-          cache: "npm" # Cache automático das dependências
+          cache: "npm"
 
       - name: 📦 Install dependencies
-        run: npm install # Mais rápido e previsível que npm install
+        run: npm ci
 
       - name: 🏗️ Build application
         run: |
@@ -30,31 +30,46 @@ jobs:
             echo "⚠️ Nenhum script de build encontrado, pulando etapa..."
           fi
 
-      - name: 🧹 Clean up unnecessary files
+      - name: 🧹 Clean unnecessary files
         run: |
-          echo "🧹 Removendo arquivos desnecessários..."
+          echo "🧹 Limpando arquivos desnecessários..."
           rm -rf .git .github tests docs *.md
 
-      - name: 📤 Deploy to EC2 via SSH
+      - name: 📤 Deploy to EC2
         uses: appleboy/ssh-action@master
         with:
           host: ec2-18-208-250-82.compute-1.amazonaws.com
           username: ubuntu
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
-            echo "🚀 Iniciando deploy no servidor EC2..."
+            echo "🚀 Iniciando deploy na EC2..."
 
-            cd /var/www/nodejs-app || exit 1
-
-            echo "🔄 Atualizando código..."
-            git fetch origin main
-            git reset --hard origin/main
-
-            echo "📦 Atualizando dependências..."
-            npm ci --omit=dev
-
-            echo "🔧 Ajustando permissões..."
+            # Cria o diretório do app, se não existir
+            sudo mkdir -p /var/www/nodejs-app
             sudo chown -R ubuntu:ubuntu /var/www/nodejs-app
+            cd /var/www/nodejs-app
+
+            # Se o repositório ainda não existir, clona
+            if [ ! -d ".git" ]; then
+              echo "📥 Clonando repositório pela primeira vez..."
+              git clone https://github.com/${GITHUB_REPOSITORY}.git .
+              git checkout main
+            else
+              echo "🔄 Atualizando código existente..."
+              git fetch origin main
+              git reset --hard origin/main
+            fi
+
+            # Instalar Node.js e PM2 se necessário
+            if ! command -v node > /dev/null; then
+              echo "🧩 Instalando Node.js e PM2..."
+              curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+              sudo npm install -g pm2
+            fi
+
+            echo "📦 Instalando dependências..."
+            npm ci --omit=dev
 
             echo "♻️ Reiniciando aplicação com PM2..."
             if pm2 describe my-nodejs-app > /dev/null; then
@@ -63,11 +78,5 @@ jobs:
               pm2 start npm --name "my-nodejs-app" -- run start
             fi
 
-            echo "💾 Salvando estado do PM2..."
             pm2 save
-            pm2 startup systemd -u ubuntu --hp /home/ubuntu
-
             echo "✅ Deploy concluído com sucesso!"
-
-      - name: ✅ Final message
-        run: echo "🎉 Deploy finalizado com sucesso no EC2!"
