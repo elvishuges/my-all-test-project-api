@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-      EC2_URL: "ec2-18-208-250-82.compute-1.amazonaws.com"
+      EC2_URL: "eec2-54-242-68-24.compute-1.amazonaws.com"
       EC2_USERNAME: "ubuntu"
 
     steps:
@@ -26,7 +26,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22" # Sua versão desejada
+          node-version: "24" # Sua versão desejada
 
       - name: Install dependencies locally
         run: npm install
