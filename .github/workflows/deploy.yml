@@ -20,7 +20,7 @@ jobs:
           cache: "npm" # Cache automático das dependências
 
       - name: 📦 Install dependencies
-        run: npm ci # Mais rápido e previsível que npm install
+        run: npm install # Mais rápido e previsível que npm install
 
       - name: 🏗️ Build application
         run: |
