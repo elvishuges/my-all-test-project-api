@@ -1,23 +1,62 @@
-name: Setup SSH for EC2 instance
+name: Deploy Node.js to EC2
 
 on:
   push:
     branches:
-      - main
+      - main # Or your main branch name
 
 jobs:
-  setup-ssh:
+  deploy:
     runs-on: ubuntu-latest
     env:
       EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
       EC2_URL: "ec2-18-208-250-82.compute-1.amazonaws.com"
       EC2_USERNAME: "ubuntu"
+
     steps:
       - name: Setup SSH for EC2
         uses: omarhosny206/setup-ssh-for-ec2@v1.0.0
         with:
-          EC2_SSH_PRIVATE_KEY: $EC2_SSH_PRIVATE_KEY
-          EC2_URL: $EC2_URL
-      # then you can run commands/scripts directly on the EC2 instance e.g.:
-      - name: Create a new file on the EC2 instance with "hello-world"
-        run: ssh -o StrictHostKeyChecking=no $EC2_USERNAME@$EC2_URL "echo "hello-world" >> new_file.txt"
+          EC2_SSH_PRIVATE_KEY: ${{ env.EC2_SSH_PRIVATE_KEY }}
+          EC2_URL: ${{ env.EC2_URL }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22' # Sua versão desejada
+
+      - name: Install dependencies locally
+        run: npm install
+
+      - name: Deploy project to EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no $EC2_USERNAME@$EC2_URL << 'EOF'
+            # Diretório do app na EC2
+            APP_DIR=/home/ubuntu/meu-projeto-node
+            mkdir -p $APP_DIR
+            cd $APP_DIR
+
+            # Clonar ou atualizar o repositório
+            if [ ! -d ".git" ]; then
+              git clone https://github.com/elvishuges/my-all-test-project-api.git .
+              git checkout main
+            else
+              git fetch origin main
+              git reset --hard origin/main
+            fi
+
+            # Instalar dependências
+            npm install
+
+            # Reiniciar ou iniciar a aplicação com PM2
+            if pm2 describe generic-api > /dev/null; then
+              pm2 restart generic-api
+            else
+              pm2 start index.js --name "generic-api"
+            fi
+
+            pm2 save
+EOF
