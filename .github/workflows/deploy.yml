@@ -1,79 +1,73 @@
-name: Deploy Node.js to EC2
+name: 🚀 Deploy Node.js App to AWS EC2
 
 on:
   push:
     branches:
-      - main
+      - main # Executa ao fazer push na branch main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    env:
-      EC2_SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-      EC2_HOST: ec2-18-208-250-82.compute-1.amazonaws.com
-      EC2_USER: ubuntu
-      APP_PATH: /home/ubuntu/meu-projeto-node
-
     steps:
-      # 1️⃣ Configurar a chave SSH
-      - name: Configurar chave SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "$EC2_SSH_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts
-
-      # 2️⃣ Verificar conexão
-      - name: Testar conexão SSH
-        run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa $EC2_USER@$EC2_HOST "echo '✅ Conexão SSH bem-sucedida!'"
-
-      # 3️⃣ Checkout do repositório
-      - name: Checkout código
+      - name: 🧩 Checkout code
         uses: actions/checkout@v4
 
-      # 4️⃣ Cache de dependências do Node.js
-      - name: Cache dependências Node.js
-        uses: actions/cache@v4
+      - name: 🧰 Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
+          node-version: "18"
+          cache: "npm" # Cache automático das dependências do npm
 
-      # 5️⃣ Enviar código para a EC2 (sincronizado com rsync)
-      - name: Copiar arquivos para EC2
+      - name: 📦 Install dependencies
+        run: npm i # mais rápido e confiável que npm install
+
+      - name: 🏗️ Build application
+        if: exists('package.json')
         run: |
-          rsync -avz --delete \
-            --exclude '.git' \
-            --exclude 'node_modules' \
-            --exclude '.github' \
-            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
-            ./ $EC2_USER@$EC2_HOST:$APP_PATH
+          if [ -f package.json ] && grep -q "\"build\":" package.json; then
+            npm run build
+          else
+            echo "No build script found, skipping..."
+          fi
 
-      # 6️⃣ Instalar dependências e reiniciar aplicação com PM2
-      - name: Instalar dependências e reiniciar app
+      # Remove arquivos desnecessários antes do envio
+      - name: 🧹 Clean up unnecessary files
         run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
-            set -e
-            cd $APP_PATH
+          echo "Removing unnecessary files..."
+          rm -rf .git .github tests docs *.md
 
-            echo "📦 Instalando dependências..."
-            npm i --omit=dev
+      - name: 📤 Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          script: |
+            echo "Starting deployment on EC2..."
 
-            echo "🏗️  Buildando (se existir script build)..."
-            if [ -f package.json ] && grep -q "\"build\":" package.json; then
-              npm run build
+            cd /var/www/nodejs-app || exit 1
+
+            # Atualiza o código
+            git fetch origin main
+            git reset --hard origin/main
+
+            # Atualiza dependências de forma segura
+            npm ci --omit=dev
+
+            # Garante permissões corretas
+            sudo chown -R ubuntu:ubuntu /var/www/nodejs-app
+
+            # Reinicia o app com PM2 (ou cria se não existir)
+            if pm2 describe my-nodejs-app > /dev/null; then
+              pm2 restart my-nodejs-app
+            else
+              pm2 start npm --name "my-nodejs-app" -- run start
             fi
 
-            echo "🚀 Iniciando ou reiniciando aplicação com PM2..."
-            if ! command -v pm2 &> /dev/null; then
-              sudo npm install -g pm2
-            fi
-
-            pm2 start ecosystem.config.js || pm2 restart all || pm2 start index.js --name "meu-projeto"
+            # Salva estado do PM2 para reiniciar no reboot
             pm2 save
+            pm2 startup systemd -u ubuntu --hp /home/ubuntu
 
-            echo "✅ Deploy finalizado com sucesso!"
-          EOF
+      - name: ✅ Deployment completed
+        run: echo "✅ Deploy concluído com sucesso!"
