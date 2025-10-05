@@ -23,7 +23,7 @@ jobs:
 
       # 3️⃣ Instalar dependências localmente (opcional)
       - name: 📦 Install dependencies
-        run: npm ci
+        run: npm install
 
       # 4️⃣ Upload dos arquivos para a EC2
       - name: 📤 Upload files to EC2
