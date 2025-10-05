@@ -47,18 +47,7 @@ jobs:
             # Cria o diretório do app, se não existir
             sudo mkdir -p /var/www/nodejs-app
             sudo chown -R ubuntu:ubuntu /var/www/nodejs-app
-            cd /var/www/nodejs-app
-
-            # Se o repositório ainda não existir, clona
-            if [ ! -d ".git" ]; then
-              echo "📥 Clonando repositório pela primeira vez..."
-              git clone https://github.com/${GITHUB_REPOSITORY}.git .
-              git checkout main
-            else
-              echo "🔄 Atualizando código existente..."
-              git fetch origin main
-              git reset --hard origin/main
-            fi
+            cd /var/www/nodejs-app            
 
             # Instalar Node.js e PM2 se necessário
             if ! command -v node > /dev/null; then
