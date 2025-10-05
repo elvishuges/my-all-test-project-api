@@ -15,7 +15,7 @@ const DATABASE_URL = process.env.DATABASE_URL;
 const DATABASE_NAME = process.env.DATABASE_NAME;
 
 app.use(cors());
-databaseConnection(DATABASE_URL, DATABASE_NAME);
+//databaseConnection(DATABASE_URL, DATABASE_NAME);
 app.use(express.json());
 app.use("/api", express.static("uploads"));
 app.use("/api", router);
