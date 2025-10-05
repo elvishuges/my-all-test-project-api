@@ -20,7 +20,7 @@ jobs:
           cache: "npm" # Cache automático das dependências do npm
 
       - name: 📦 Install dependencies
-        run: npm i # mais rápido e confiável que npm install
+        run: npm ci # mais rápido e confiável que npm install
 
       - name: 🏗️ Build application
         if: exists('package.json')
