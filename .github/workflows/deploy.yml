@@ -1,60 +1,23 @@
-name: 🚀 Deploy Node.js App to AWS EC2
+name: Setup SSH for EC2 instance
 
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
-  deploy:
+  setup-ssh:
     runs-on: ubuntu-latest
-
+    env:
+      EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+      EC2_URL: "ec2-18-208-250-82.compute-1.amazonaws.com"
+      EC2_USERNAME: "ubuntu"
     steps:
-      # 1️⃣ Pegar o código
-      - name: 🧩 Checkout code
-        uses: actions/checkout@v4
-
-      # 2️⃣ Configurar Node.js no Actions (para npm ci)
-      - name: 🧰 Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup SSH for EC2
+        uses: omarhosny206/setup-ssh-for-ec2@v1.0.0
         with:
-          node-version: "22"
-          cache: "npm"
-
-      # 3️⃣ Instalar dependências localmente (opcional)
-      - name: 📦 Install dependencies
-        run: npm install
-
-      # 4️⃣ Upload dos arquivos para a EC2
-      - name: 📤 Upload files to EC2
-        run: |
-          echo "🚀 Enviando arquivos para a EC2..."
-          ssh -i ${{ secrets.EC2_SSH_PRIVATE_KEY }} -o StrictHostKeyChecking=no ubuntu@ec2-18-208-250-82.compute-1.amazonaws.com \
-            "mkdir -p /home/ubuntu/meu-projeto-node && sudo chown -R ubuntu:ubuntu /home/ubuntu/meu-projeto-node"
-
-          rsync -avz --delete --exclude node_modules --exclude .git \
-            -e "ssh -i ${{ secrets.EC2_SSH_PRIVATE_KEY }} -o StrictHostKeyChecking=no" \
-            ./ ubuntu@ec2-18-208-250-82.compute-1.amazonaws.com:/home/ubuntu/meu-projeto-node/
-
-      # 5️⃣ Rodar na EC2: instalar deps e iniciar com nodemon
-      - name: 🔧 Run Node.js app on EC2
-        run: |
-          ssh -i ${{ secrets.EC2_SSH_PRIVATE_KEY }} -o StrictHostKeyChecking=no ubuntu@ec2-18-208-250-82.compute-1.amazonaws.com << 'EOF'
-            cd /home/ubuntu/meu-projeto-node
-
-            # Instalar Node 22 se necessário
-            if ! command -v node > /dev/null || [ "$(node -v | cut -d'v' -f2 | cut -d. -f1)" != "22" ]; then
-              curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-              sudo apt-get install -y nodejs
-            fi
-
-            # Instalar nodemon globalmente se não existir
-            if ! command -v nodemon > /dev/null; then
-              sudo npm install -g nodemon
-            fi
-
-            # Instalar dependências do projeto
-            npm install
-
-            # Rodar o app com nodemon
-            npx nodemon index.js
+          EC2_SSH_PRIVATE_KEY: $EC2_SSH_PRIVATE_KEY
+          EC2_URL: $EC2_URL
+      # then you can run commands/scripts directly on the EC2 instance e.g.:
+      - name: Create a new file on the EC2 instance with "hello-world"
+        run: ssh -o StrictHostKeyChecking=no $EC2_USERNAME@$EC2_URL "echo "hello-world" >> new_file.txt"
