@@ -17,57 +17,57 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "18"
-          cache: "npm" # Cache automático das dependências do npm
+          cache: "npm" # Cache automático das dependências
 
       - name: 📦 Install dependencies
-        run: npm ci # mais rápido e confiável que npm install
+        run: npm ci # Mais rápido e previsível que npm install
 
       - name: 🏗️ Build application
-        if: exists('package.json')
         run: |
           if [ -f package.json ] && grep -q "\"build\":" package.json; then
             npm run build
           else
-            echo "No build script found, skipping..."
+            echo "⚠️ Nenhum script de build encontrado, pulando etapa..."
           fi
 
-      # Remove arquivos desnecessários antes do envio
       - name: 🧹 Clean up unnecessary files
         run: |
-          echo "Removing unnecessary files..."
+          echo "🧹 Removendo arquivos desnecessários..."
           rm -rf .git .github tests docs *.md
 
       - name: 📤 Deploy to EC2 via SSH
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
+          host: ec2-18-208-250-82.compute-1.amazonaws.com
+          username: ubuntu
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
-            echo "Starting deployment on EC2..."
+            echo "🚀 Iniciando deploy no servidor EC2..."
 
             cd /var/www/nodejs-app || exit 1
 
-            # Atualiza o código
+            echo "🔄 Atualizando código..."
             git fetch origin main
             git reset --hard origin/main
 
-            # Atualiza dependências de forma segura
+            echo "📦 Atualizando dependências..."
             npm ci --omit=dev
 
-            # Garante permissões corretas
+            echo "🔧 Ajustando permissões..."
             sudo chown -R ubuntu:ubuntu /var/www/nodejs-app
 
-            # Reinicia o app com PM2 (ou cria se não existir)
+            echo "♻️ Reiniciando aplicação com PM2..."
             if pm2 describe my-nodejs-app > /dev/null; then
               pm2 restart my-nodejs-app
             else
               pm2 start npm --name "my-nodejs-app" -- run start
             fi
 
-            # Salva estado do PM2 para reiniciar no reboot
+            echo "💾 Salvando estado do PM2..."
             pm2 save
             pm2 startup systemd -u ubuntu --hp /home/ubuntu
 
-      - name: ✅ Deployment completed
-        run: echo "✅ Deploy concluído com sucesso!"
+            echo "✅ Deploy concluído com sucesso!"
+
+      - name: ✅ Final message
+        run: echo "🎉 Deploy finalizado com sucesso no EC2!"
