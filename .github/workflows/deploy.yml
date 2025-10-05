@@ -3,7 +3,7 @@ name: Deploy Node.js to EC2
 on:
   push:
     branches:
-      - main # Or your main branch name
+      - main # Ou o nome da sua branch principal
 
 jobs:
   deploy:
@@ -26,7 +26,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "24" # Sua versão desejada
+          node-version: "22" # ou 24 se quiser a mais recente
 
       - name: Install dependencies locally
         run: npm install
@@ -34,6 +34,20 @@ jobs:
       - name: Deploy project to EC2
         run: |
           ssh -o StrictHostKeyChecking=no $EC2_USERNAME@$EC2_URL << 'EOF'
+            # Atualizar pacotes
+            sudo apt update -y
+
+            # Instalar Node.js se não existir
+            if ! command -v node &> /dev/null; then
+              curl -fsSL https://deb.nodesource.com/setup_current.x | sudo -E bash -
+              sudo apt install -y nodejs
+            fi
+
+            # Instalar PM2 globalmente (se ainda não estiver instalado)
+            if ! command -v pm2 &> /dev/null; then
+              sudo npm install -g pm2
+            fi
+
             # Diretório do app na EC2
             APP_DIR=/home/ubuntu/meu-projeto-node
             mkdir -p $APP_DIR
@@ -49,13 +63,16 @@ jobs:
             fi
 
             # Instalar dependências
-            npm install
+            npm install --production
 
-            # Reiniciar ou iniciar a aplicação com PM2
-            if pm2 describe generic-api > /dev/null; then
+            # Iniciar ou reiniciar com PM2
+            if pm2 list | grep -q "generic-api"; then
               pm2 restart generic-api
             else
               pm2 start index.js --name "generic-api"
             fi
 
+            # Garantir que o PM2 reinicie automaticamente após reboot
             pm2 save
+            pm2 startup systemd -u ubuntu --hp /home/ubuntu
+          EOF
