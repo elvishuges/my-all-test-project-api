@@ -60,7 +60,7 @@ jobs:
             cd $APP_PATH
 
             echo "📦 Instalando dependências..."
-            npm ci --omit=dev
+            npm i --omit=dev
 
             echo "🏗️  Buildando (se existir script build)..."
             if [ -f package.json ] && grep -q "\"build\":" package.json; then
